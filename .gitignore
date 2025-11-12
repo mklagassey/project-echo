@@ -24,3 +24,8 @@ echo.db
 # OS
 .DS_Store
 Thumbs.db
+
+# Compiled binaries & packages
+*.dmg
+*.jar
+*.war

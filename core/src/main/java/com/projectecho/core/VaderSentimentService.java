@@ -1,8 +1,8 @@
 package com.projectecho.core;
 
-// Correct imports based on the provided source code
-import com.vader.sentiment.analyzer.SentimentAnalyzer;
-import com.vader.sentiment.analyzer.SentimentPolarities;
+// Temporarily disabling VADER imports for diagnostics
+// import com.vader.sentiment.analyzer.SentimentAnalyzer;
+// import com.vader.sentiment.analyzer.SentimentPolarities;
 
 public class VaderSentimentService implements SentimentService {
 
@@ -12,13 +12,12 @@ public class VaderSentimentService implements SentimentService {
             return Mention.Sentiment.NEUTRAL;
         }
 
-        // Use the static method exactly as shown in the source code you provided.
-        final SentimentPolarities sentimentPolarities = SentimentAnalyzer.getScoresFor(text);
-        float compoundScore = sentimentPolarities.getCompoundPolarity();
-
-        if (compoundScore >= 0.05) {
+        // --- Temporary Diagnostic Logic ---
+        // This will help us confirm that the sentiment saving/displaying mechanism works.
+        String lowerText = text.toLowerCase();
+        if (lowerText.contains("good") || lowerText.contains("great") || lowerText.contains("excellent") || lowerText.contains("love")) {
             return Mention.Sentiment.POSITIVE;
-        } else if (compoundScore <= -0.05) {
+        } else if (lowerText.contains("bad") || lowerText.contains("terrible") || lowerText.contains("awful") || lowerText.contains("hate")) {
             return Mention.Sentiment.NEGATIVE;
         } else {
             return Mention.Sentiment.NEUTRAL;

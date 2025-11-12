@@ -1,22 +1,33 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <?import javafx.geometry.Insets?>
-<?import javafx.scene.control.Button?>
-<?import javafx.scene.control.ChoiceBox?>
-<?import javafx.scene.control.Label?>
-<?import javafx.scene.control.ListView?>
-<?import javafx.scene.control.TextField?>
-<?import javafx.scene.control.TitledPane?>
+<?import javafx.scene.control.*?>
 <?import javafx.scene.layout.BorderPane?>
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.VBox?>
 
 <BorderPane xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1">
     <top>
-        <VBox spacing="10" style="-fx-padding: 10;">
-            <Label text="Add Keyword:"/>
-            <TextField fx:id="keywordInput" onAction="#addKeyword"/>
-            <Button onAction="#addKeyword" text="Add"/>
+        <VBox>
+            <MenuBar>
+                <Menu text="Settings">
+                    <Menu text="Polling Frequency">
+                        <items>
+                            <RadioMenuItem fx:id="freq15m" text="15 Minutes"/>
+                            <RadioMenuItem fx:id="freq30m" text="30 Minutes (Default)"/>
+                            <RadioMenuItem fx:id="freq1h" text="1 Hour"/>
+                        </items>
+                    </Menu>
+                </Menu>
+            </MenuBar>
+            <VBox spacing="10" style="-fx-padding: 10;">
+                <Label text="Add Keyword:"/>
+                <HBox spacing="10">
+                    <TextField fx:id="keywordInput" onAction="#addKeyword" HBox.hgrow="ALWAYS"/>
+                    <Button onAction="#addKeyword" text="Add"/>
+                    <Button fx:id="checkNowButton" onAction="#checkNow" text="Check Now"/>
+                </HBox>
+            </VBox>
         </VBox>
     </top>
     <center>

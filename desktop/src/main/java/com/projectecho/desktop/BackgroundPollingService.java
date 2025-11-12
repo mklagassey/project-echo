@@ -1,20 +1,13 @@
 package com.projectecho.desktop;
 
-import com.projectecho.core.HackerNewsSource;
-import com.projectecho.core.Keyword;
-import com.projectecho.core.Mention;
-import com.projectecho.core.RedditSource;
-import com.projectecho.core.Source;
+import com.projectecho.core.*;
 import javafx.application.Platform;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ThreadFactory;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 
 public class BackgroundPollingService {
 
@@ -23,6 +16,9 @@ public class BackgroundPollingService {
     private final MainController mainController;
     private final List<Source> sources;
     private final ScheduledExecutorService scheduler;
+    private ScheduledFuture<?> scheduledTask;
+    private volatile long pollingIntervalMinutes = 30; // Default
+
     private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm:ss");
 
     public BackgroundPollingService(MainController mainController, SqliteKeywordDao keywordDao, SqliteMentionDao mentionDao) {
@@ -37,29 +33,35 @@ public class BackgroundPollingService {
             return thread;
         };
         this.scheduler = Executors.newSingleThreadScheduledExecutor(daemonThreadFactory);
-
-        // SystemTray functionality is temporarily disabled to prevent startup hangs.
-        // setupSystemTray(); 
     }
 
     public void start() {
-        scheduler.scheduleAtFixedRate(this::poll, 0, 30, TimeUnit.MINUTES);
+        reschedule();
     }
 
     public void stop() {
         scheduler.shutdownNow();
-        try {
-            if (!scheduler.awaitTermination(5, TimeUnit.SECONDS)) {
-                System.err.println("Scheduler did not terminate.");
-            }
-        } catch (InterruptedException e) {
-            scheduler.shutdownNow();
-            Thread.currentThread().interrupt();
+    }
+
+    public void pollNow() {
+        // Run the poll task in a new background thread to not block the UI
+        scheduler.execute(this::poll);
+    }
+
+    public void setPollingInterval(long minutes) {
+        this.pollingIntervalMinutes = minutes;
+        reschedule();
+    }
+
+    private void reschedule() {
+        if (scheduledTask != null) {
+            scheduledTask.cancel(false);
         }
+        scheduledTask = scheduler.scheduleAtFixedRate(this::poll, 0, pollingIntervalMinutes, TimeUnit.MINUTES);
     }
 
     private void poll() {
-        mainController.updateStatus("Starting poll at " + TIME_FORMATTER.format(LocalDateTime.now()) + "...");
+        mainController.updateStatus("Polling for mentions...");
         List<Keyword> keywords = keywordDao.findAll();
         if (keywords.isEmpty()) {
             mainController.updateStatus("No keywords to search. Add a keyword to begin.");
@@ -78,6 +80,7 @@ public class BackgroundPollingService {
         List<Mention> newMentions = new ArrayList<>();
         for (Mention mention : allFoundMentions) {
             if (!mentionDao.existsByUrl(mention.getUrl())) {
+                mention.setSentiment(new VaderSentimentService().analyze(mention.getContent()));
                 mentionDao.save(mention);
                 newMentions.add(mention);
             }
@@ -85,25 +88,9 @@ public class BackgroundPollingService {
 
         if (!newMentions.isEmpty()) {
             mainController.addMentions(newMentions);
-            // showNotification(newMentions.size()); // Disabled
         }
         
         String result = String.format("Poll complete. Found %d new mentions. Last poll: %s", newMentions.size(), TIME_FORMATTER.format(LocalDateTime.now()));
         mainController.updateStatus(result);
     }
-
-    // All SystemTray and notification methods are temporarily disabled.
-    /*
-    private void setupSystemTray() {
-        if (SystemTray.isSupported()) {
-            // ...
-        }
-    }
-
-    private void showNotification(int mentionCount) {
-        if (trayIcon != null) {
-            // ...
-        }
-    }
-    */
 }

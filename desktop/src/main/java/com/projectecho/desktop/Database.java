@@ -3,6 +3,7 @@ package com.projectecho.desktop;
 import java.io.File;
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 
@@ -31,23 +32,27 @@ public class Database {
                          "phrase TEXT NOT NULL UNIQUE" +
                          ");");
 
-            // Add the sentiment column to the mentions table
             stmt.execute("CREATE TABLE IF NOT EXISTS mentions (" +
                          "id INTEGER PRIMARY KEY AUTOINCREMENT," +
                          "content TEXT NOT NULL," +
                          "source TEXT NOT NULL," +
                          "url TEXT NOT NULL UNIQUE," +
-                         "foundAt TEXT NOT NULL," +
-                         "sentiment TEXT" + // Storing sentiment as TEXT
+                         "foundAt TEXT NOT NULL" +
                          ");");
-                         
-            // Use ALTER TABLE to add the column if the table already exists
-            if (!stmt.executeQuery("PRAGMA table_info(mentions)").toString().contains("sentiment")) {
+
+            // Robustly check for and add the sentiment column
+            if (!columnExists(conn, "mentions", "sentiment")) {
                 stmt.execute("ALTER TABLE mentions ADD COLUMN sentiment TEXT");
             }
 
         } catch (SQLException e) {
             e.printStackTrace();
+        }
+    }
+
+    private static boolean columnExists(Connection connection, String tableName, String columnName) throws SQLException {
+        try (ResultSet rs = connection.getMetaData().getColumns(null, null, tableName, columnName)) {
+            return rs.next();
         }
     }
 }

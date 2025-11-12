@@ -10,94 +10,40 @@ import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
+import javafx.scene.layout.BorderPane;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.function.Predicate;
 
 public class MainController {
 
-    @FXML
-    private TextField keywordInput;
-    @FXML
-    private ListView<Keyword> keywordListView;
-    @FXML
-    private ListView<Mention> mentionListView;
-    @FXML
-    private Label statusLabel;
-    @FXML
-    private ChoiceBox<String> sourceFilterChoiceBox;
-    @FXML
-    private ChoiceBox<String> keywordFilterChoiceBox;
-    @FXML
-    private ChoiceBox<String> sentimentFilterChoiceBox;
-    @FXML
-    private TitledPane mentionsPane;
-    @FXML
-    private RadioMenuItem freq15m, freq30m, freq1h;
+    // --- All FXML Fields in one Controller ---
+    @FXML private BorderPane mentionsView, analyticsView;
+    @FXML private Button mentionsButton, analyticsButton;
+    @FXML private RadioMenuItem freq15m, freq30m, freq1h;
+    @FXML private TextField keywordInput;
+    @FXML private ListView<Keyword> keywordListView;
+    @FXML private ListView<Mention> mentionListView;
+    @FXML private Label statusLabel;
+    @FXML private ChoiceBox<String> sourceFilterChoiceBox, keywordFilterChoiceBox, sentimentFilterChoiceBox;
+    @FXML private TitledPane mentionsPane;
 
+    // --- Data and Services ---
     private final ObservableList<Keyword> keywords = FXCollections.observableArrayList();
     private final ObservableList<Mention> allMentions = FXCollections.observableArrayList();
     private FilteredList<Mention> filteredMentions;
-
-    private final SqliteKeywordDao keywordDao;
-    private final SqliteMentionDao mentionDao;
+    private final SqliteKeywordDao keywordDao = new SqliteKeywordDao();
+    private final SqliteMentionDao mentionDao = new SqliteMentionDao();
     private BackgroundPollingService pollingService;
-
-    public MainController(SqliteKeywordDao keywordDao, SqliteMentionDao mentionDao) {
-        this.keywordDao = keywordDao;
-        this.mentionDao = mentionDao;
-    }
-
-    public void setPollingService(BackgroundPollingService pollingService) {
-        this.pollingService = pollingService;
-    }
 
     @FXML
     public void initialize() {
+        // --- Mentions View Setup ---
         keywordListView.setItems(keywords);
         filteredMentions = new FilteredList<>(allMentions);
         mentionListView.setItems(filteredMentions);
-
-        setupCellFactories();
-        setupFilters();
-        setupMentionsPane();
-        setupPollingMenu();
-    }
-    
-    public void loadInitialData() {
-        keywords.setAll(keywordDao.findAll());
-        allMentions.setAll(mentionDao.findAll());
-        applyFilters();
-    }
-
-    private void setupPollingMenu() {
-        ToggleGroup frequencyToggleGroup = new ToggleGroup();
-        freq15m.setToggleGroup(frequencyToggleGroup);
-        freq30m.setToggleGroup(frequencyToggleGroup);
-        freq1h.setToggleGroup(frequencyToggleGroup);
-        freq30m.setSelected(true); // Default
-
-        frequencyToggleGroup.selectedToggleProperty().addListener((obs, oldToggle, newToggle) -> {
-            if (pollingService == null) return;
-            if (newToggle == freq15m) {
-                pollingService.setPollingInterval(15);
-            } else if (newToggle == freq30m) {
-                pollingService.setPollingInterval(30);
-            } else if (newToggle == freq1h) {
-                pollingService.setPollingInterval(60);
-            }
-        });
-    }
-    
-    @FXML
-    private void checkNow() {
-        if (pollingService != null) {
-            pollingService.pollNow();
-        }
-    }
-
-    private void setupCellFactories() {
-        // **FIX:** Restore the correct cell factory for the keyword list
+        mentionListView.setCellFactory(param -> new MentionListCell());
         keywordListView.setCellFactory(param -> new ListCell<>() {
             @Override
             protected void updateItem(Keyword item, boolean empty) {
@@ -105,22 +51,93 @@ public class MainController {
                 setText(empty || item == null ? null : item.getPhrase());
             }
         });
-        mentionListView.setCellFactory(param -> new MentionListCell());
+        setupFilters();
+        setupMentionsPane();
+
+        // --- Global Setup ---
+        setupPollingMenu();
+        showMentionsView(); // Start on the mentions view
+    }
+    
+    public void startServices() {
+        pollingService = new BackgroundPollingService(this, keywordDao, mentionDao);
+        pollingService.start();
+        loadInitialData();
     }
 
+    private void loadInitialData() {
+        keywords.setAll(keywordDao.findAll());
+        allMentions.setAll(mentionDao.findAll());
+        applyFilters();
+    }
+
+    // --- View Switching Logic ---
+    @FXML
+    private void showMentionsView() {
+        mentionsView.setVisible(true);
+        analyticsView.setVisible(false);
+        updateButtonStyles(mentionsButton);
+    }
+
+    @FXML
+    private void showAnalyticsView() {
+        mentionsView.setVisible(false);
+        analyticsView.setVisible(true);
+        updateButtonStyles(analyticsButton);
+    }
+
+    private void updateButtonStyles(Button activeButton) {
+        String activeStyle = "-fx-font-weight: bold; -fx-background-color: #cce5ff;";
+        mentionsButton.setStyle(mentionsButton == activeButton ? activeStyle : "");
+        analyticsButton.setStyle(analyticsButton == activeButton ? activeStyle : "");
+    }
+
+    // --- Menu and Action Handlers ---
+    private void setupPollingMenu() {
+        ToggleGroup frequencyToggleGroup = new ToggleGroup();
+        freq15m.setToggleGroup(frequencyToggleGroup);
+        freq30m.setToggleGroup(frequencyToggleGroup);
+        freq1h.setToggleGroup(frequencyToggleGroup);
+        freq30m.setSelected(true);
+        frequencyToggleGroup.selectedToggleProperty().addListener((obs, old, val) -> {
+            if (pollingService == null) return;
+            if (val == freq15m) pollingService.setPollingInterval(15);
+            else if (val == freq30m) pollingService.setPollingInterval(30);
+            else if (val == freq1h) pollingService.setPollingInterval(60);
+        });
+    }
+
+    @FXML
+    private void checkNow() {
+        if (pollingService != null) pollingService.pollNow();
+    }
+
+    @FXML
+    private void resetAllKeywords() {
+        if (showConfirmation("Reset All Keywords?", "This will permanently delete all your keywords.")) {
+            keywordDao.deleteAll();
+            keywords.clear();
+        }
+    }
+
+    @FXML
+    private void resetAllMentions() {
+        if (showConfirmation("Reset All Mentions?", "This will permanently delete all saved mentions.")) {
+            mentionDao.deleteAll();
+            allMentions.clear();
+        }
+    }
+
+    // --- Mentions View Logic ---
     private void setupFilters() {
         sourceFilterChoiceBox.getItems().addAll("All Sources", "Hacker News", "Reddit r/saas");
         sourceFilterChoiceBox.setValue("All Sources");
         keywordFilterChoiceBox.getItems().add("All Keywords");
         keywordFilterChoiceBox.setValue("All Keywords");
-        
         keywords.addListener((ListChangeListener<Keyword>) c -> updateKeywordFilterChoices());
-        
         sentimentFilterChoiceBox.getItems().addAll("All Sentiments", "POSITIVE", "NEUTRAL", "NEGATIVE");
         sentimentFilterChoiceBox.setValue("All Sentiments");
-        
-        // **FIX:** Use a ChangeListener to prevent the "one step behind" bug
-        ChangeListener<String> filterListener = (obs, oldVal, newVal) -> applyFilters();
+        ChangeListener<String> filterListener = (obs, old, val) -> applyFilters();
         sourceFilterChoiceBox.getSelectionModel().selectedItemProperty().addListener(filterListener);
         keywordFilterChoiceBox.getSelectionModel().selectedItemProperty().addListener(filterListener);
         sentimentFilterChoiceBox.getSelectionModel().selectedItemProperty().addListener(filterListener);
@@ -131,11 +148,9 @@ public class MainController {
         String selectedKeyword = keywordFilterChoiceBox.getValue();
         String selectedSentiment = sentimentFilterChoiceBox.getValue();
         if (selectedSource == null || selectedKeyword == null || selectedSentiment == null) return;
-        
         Predicate<Mention> sourcePredicate = mention -> "All Sources".equals(selectedSource) || selectedSource.equals(mention.getSource());
         Predicate<Mention> keywordPredicate = mention -> "All Keywords".equals(selectedKeyword) || (mention.getContent() != null && mention.getContent().toLowerCase().contains(selectedKeyword.toLowerCase()));
         Predicate<Mention> sentimentPredicate = mention -> "All Sentiments".equals(selectedSentiment) || (mention.getSentiment() != null && selectedSentiment.equals(mention.getSentiment().name()));
-        
         filteredMentions.setPredicate(sourcePredicate.and(keywordPredicate).and(sentimentPredicate));
     }
     
@@ -143,33 +158,42 @@ public class MainController {
         String selected = keywordFilterChoiceBox.getValue();
         keywordFilterChoiceBox.getItems().setAll("All Keywords");
         keywords.forEach(kw -> keywordFilterChoiceBox.getItems().add(kw.getPhrase()));
-        if (keywordFilterChoiceBox.getItems().contains(selected)) {
-            keywordFilterChoiceBox.setValue(selected);
-        } else {
-            keywordFilterChoiceBox.setValue("All Keywords");
-        }
+        if (keywordFilterChoiceBox.getItems().contains(selected)) keywordFilterChoiceBox.setValue(selected);
+        else keywordFilterChoiceBox.setValue("All Keywords");
     }
 
     private void setupMentionsPane() {
-        filteredMentions.addListener((ListChangeListener<Mention>) c -> updateMentionsPaneTitle());
-        updateMentionsPaneTitle();
-    }
-
-    private void updateMentionsPaneTitle() {
-        int size = filteredMentions.size();
-        mentionsPane.setText("Mentions (" + size + ")");
-        mentionsPane.setExpanded(size <= 100);
+        mentionsPane.setExpanded(true);
+        filteredMentions.addListener((ListChangeListener<Mention>) c -> mentionsPane.setText("Mentions (" + filteredMentions.size() + ")"));
+        mentionsPane.setText("Mentions (0)");
     }
 
     @FXML
     private void addKeyword() {
         String phrase = keywordInput.getText();
         if (phrase != null && !phrase.isEmpty()) {
-            Keyword newKeyword = new Keyword(phrase);
-            keywordDao.save(newKeyword);
+            keywordDao.save(new Keyword(phrase));
             keywordInput.clear();
             keywords.setAll(keywordDao.findAll());
         }
+    }
+
+    @FXML
+    private void deleteSelectedKeyword() {
+        Keyword selected = keywordListView.getSelectionModel().getSelectedItem();
+        if (selected != null) {
+            keywordDao.delete(selected);
+            keywords.setAll(keywordDao.findAll());
+        }
+    }
+
+    private boolean showConfirmation(String title, String content) {
+        Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+        alert.setTitle(title);
+        alert.setHeaderText(null);
+        alert.setContentText(content);
+        Optional<ButtonType> result = alert.showAndWait();
+        return result.isPresent() && result.get() == ButtonType.OK;
     }
 
     public void addMentions(List<Mention> newMentions) {

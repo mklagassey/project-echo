@@ -13,14 +13,15 @@ public class BackgroundPollingService {
 
     private final SqliteKeywordDao keywordDao;
     private final SqliteMentionDao mentionDao;
-    private final MainController mainController;
+    private final MainController mainController; // Changed to MainController
     private final List<Source> sources;
     private final ScheduledExecutorService scheduler;
     private ScheduledFuture<?> scheduledTask;
-    private volatile long pollingIntervalMinutes = 30; // Default
+    private volatile long pollingIntervalMinutes = 30;
 
     private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm:ss");
 
+    // Updated constructor to accept MainController
     public BackgroundPollingService(MainController mainController, SqliteKeywordDao keywordDao, SqliteMentionDao mentionDao) {
         this.mainController = mainController;
         this.keywordDao = keywordDao;
@@ -44,7 +45,6 @@ public class BackgroundPollingService {
     }
 
     public void pollNow() {
-        // Run the poll task in a new background thread to not block the UI
         scheduler.execute(this::poll);
     }
 

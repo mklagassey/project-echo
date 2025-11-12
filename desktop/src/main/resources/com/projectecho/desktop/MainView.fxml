@@ -2,11 +2,10 @@
 
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.*?>
-<?import javafx.scene.layout.BorderPane?>
-<?import javafx.scene.layout.HBox?>
-<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.text.Font?>
 
-<BorderPane xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1">
+<BorderPane xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.projectecho.desktop.MainController">
     <top>
         <VBox>
             <MenuBar>
@@ -19,37 +18,71 @@
                         </items>
                     </Menu>
                 </Menu>
+                <Menu text="Data">
+                    <items>
+                        <MenuItem onAction="#resetAllMentions" text="Reset All Mentions..."/>
+                        <MenuItem onAction="#resetAllKeywords" text="Reset All Keywords..."/>
+                    </items>
+                </Menu>
             </MenuBar>
-            <VBox spacing="10" style="-fx-padding: 10;">
-                <Label text="Add Keyword:"/>
-                <HBox spacing="10">
-                    <TextField fx:id="keywordInput" onAction="#addKeyword" HBox.hgrow="ALWAYS"/>
-                    <Button onAction="#addKeyword" text="Add"/>
-                    <Button fx:id="checkNowButton" onAction="#checkNow" text="Check Now"/>
-                </HBox>
-            </VBox>
+            <HBox spacing="10" style="-fx-padding: 10; -fx-background-color: #f0f0f0; -fx-border-color: #e0e0e0; -fx-border-width: 0 0 1 0;">
+                <Button fx:id="mentionsButton" onAction="#showMentionsView" text="Mentions"/>
+                <Button fx:id="analyticsButton" onAction="#showAnalyticsView" text="Analytics"/>
+            </HBox>
         </VBox>
     </top>
     <center>
-        <VBox spacing="10" style="-fx-padding: 0 10 10 10;">
-            <HBox alignment="CENTER_LEFT" spacing="10">
-                <Label text="Filter by source:"/>
-                <ChoiceBox fx:id="sourceFilterChoiceBox"/>
-                <Label text="Filter by keyword:"/>
-                <ChoiceBox fx:id="keywordFilterChoiceBox"/>
-                <Label text="Filter by sentiment:"/>
-                <ChoiceBox fx:id="sentimentFilterChoiceBox"/>
-            </HBox>
-            <TitledPane fx:id="mentionsPane" text="Mentions" VBox.vgrow="ALWAYS">
-                <ListView fx:id="mentionListView"/>
-            </TitledPane>
-        </VBox>
+        <StackPane>
+            <BorderPane fx:id="mentionsView">
+                <top>
+                    <VBox spacing="10" style="-fx-padding: 10;">
+                        <Label text="Add Keyword:"/>
+                        <HBox spacing="10">
+                            <TextField fx:id="keywordInput" onAction="#addKeyword" HBox.hgrow="ALWAYS"/>
+                            <Button onAction="#addKeyword" text="Add"/>
+                            <Button onAction="#checkNow" text="Check Now"/>
+                        </HBox>
+                    </VBox>
+                </top>
+                <center>
+                    <VBox spacing="10" style="-fx-padding: 0 10 10 10;">
+                        <HBox alignment="CENTER_LEFT" spacing="10">
+                            <Label text="Filter by source:"/>
+                            <ChoiceBox fx:id="sourceFilterChoiceBox"/>
+                            <Label text="Filter by keyword:"/>
+                            <ChoiceBox fx:id="keywordFilterChoiceBox"/>
+                            <Label text="Filter by sentiment:"/>
+                            <ChoiceBox fx:id="sentimentFilterChoiceBox"/>
+                        </HBox>
+                        <TitledPane fx:id="mentionsPane" text="Mentions" VBox.vgrow="ALWAYS">
+                            <!-- **FIX:** Set a minimum height to prevent the list from collapsing -->
+                            <ListView fx:id="mentionListView" minHeight="150.0"/>
+                        </TitledPane>
+                    </VBox>
+                </center>
+                <bottom>
+                    <VBox spacing="5" style="-fx-padding: 10;">
+                        <Label fx:id="statusLabel" text="Waiting to start polling..."/>
+                        <Label text="Keywords:"/>
+                        <ListView fx:id="keywordListView">
+                            <contextMenu>
+                                <ContextMenu>
+                                    <items>
+                                        <MenuItem onAction="#deleteSelectedKeyword" text="Delete Keyword"/>
+                                    </items>
+                                </ContextMenu>
+                            </contextMenu>
+                        </ListView>
+                    </VBox>
+                </bottom>
+            </BorderPane>
+            <BorderPane fx:id="analyticsView" visible="false">
+                <center>
+                    <Label text="Analytics Dashboard (Coming Soon)">
+                        <font><Font size="24.0"/></font>
+                    </Label>
+                </center>
+            </BorderPane>
+        </StackPane>
     </center>
-    <bottom>
-        <VBox spacing="5" style="-fx-padding: 10;">
-            <Label fx:id="statusLabel" text="Waiting to start polling..."/>
-            <Label text="Keywords:"/>
-            <ListView fx:id="keywordListView" prefHeight="100"/>
-        </VBox>
-    </bottom>
 </BorderPane>

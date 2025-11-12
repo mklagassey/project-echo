@@ -52,4 +52,15 @@ public class SqliteKeywordDao implements KeywordDao {
         }
         return keywords;
     }
+
+    @Override
+    public void deleteAll() {
+        String sql = "DELETE FROM keywords";
+        try (Connection conn = Database.getConnection();
+             Statement stmt = conn.createStatement()) {
+            stmt.execute(sql);
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
 }

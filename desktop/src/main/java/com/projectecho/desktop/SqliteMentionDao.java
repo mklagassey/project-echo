@@ -67,4 +67,15 @@ public class SqliteMentionDao implements MentionDao {
         }
         return mentions;
     }
+
+    @Override
+    public void deleteAll() {
+        String sql = "DELETE FROM mentions";
+        try (Connection conn = Database.getConnection();
+             Statement stmt = conn.createStatement()) {
+            stmt.execute(sql);
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
 }

@@ -8,6 +8,11 @@ import java.time.Instant;
 
 @Entity
 public class Mention {
+
+    public enum Sentiment {
+        POSITIVE, NEUTRAL, NEGATIVE
+    }
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -15,6 +20,7 @@ public class Mention {
     private String source;
     private String url;
     private Instant foundAt;
+    private Sentiment sentiment;
 
     public Mention() {
     }
@@ -25,6 +31,8 @@ public class Mention {
         this.url = url;
         this.foundAt = Instant.now();
     }
+
+    // Getters and Setters
 
     public Long getId() {
         return id;
@@ -64,5 +72,13 @@ public class Mention {
 
     public void setFoundAt(Instant foundAt) {
         this.foundAt = foundAt;
+    }
+
+    public Sentiment getSentiment() {
+        return sentiment;
+    }
+
+    public void setSentiment(Sentiment sentiment) {
+        this.sentiment = sentiment;
     }
 }

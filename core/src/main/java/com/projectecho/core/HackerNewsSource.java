@@ -3,7 +3,8 @@ package com.projectecho.core;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
-import java.io.IOException;
+import java.io.File;
+import java.io.PrintStream;
 import java.net.URI;
 import java.net.URLEncoder;
 import java.net.http.HttpClient;
@@ -15,7 +16,8 @@ import java.util.List;
 
 public class HackerNewsSource implements Source {
 
-    private static final String API_URL = "http://hn.algolia.com/api/v1/search?query=";
+    // Ensure we are using HTTPS
+    private static final String API_URL = "https://hn.algolia.com/api/v1/search?query=";
 
     private final HttpClient httpClient = HttpClient.newHttpClient();
 
@@ -42,10 +44,20 @@ public class HackerNewsSource implements Source {
                     mentions.add(new Mention(content, "Hacker News", url));
                 }
             }
-        } catch (IOException | InterruptedException e) {
-            // In a real app, log this error
-            e.printStackTrace();
+        } catch (Exception e) {
+            logError(e);
         }
         return mentions;
+    }
+
+    private void logError(Throwable t) {
+        try {
+            File errorLog = new File(System.getProperty("user.home"), "project-echo-error.log");
+            try (PrintStream ps = new PrintStream(errorLog)) {
+                t.printStackTrace(ps);
+            }
+        } catch (Exception e) {
+            // If logging fails, do nothing.
+        }
     }
 }

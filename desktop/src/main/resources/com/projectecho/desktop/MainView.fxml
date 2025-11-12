@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.ChoiceBox?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.ListView?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.control.TitledPane?>
+<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.VBox?>
+
+<BorderPane xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1">
+    <top>
+        <VBox spacing="10" style="-fx-padding: 10;">
+            <Label text="Add Keyword:"/>
+            <TextField fx:id="keywordInput" onAction="#addKeyword"/>
+            <Button onAction="#addKeyword" text="Add"/>
+        </VBox>
+    </top>
+    <center>
+        <VBox spacing="10" style="-fx-padding: 0 10 10 10;">
+            <HBox alignment="CENTER_LEFT" spacing="10">
+                <Label text="Filter by source:"/>
+                <ChoiceBox fx:id="sourceFilterChoiceBox"/>
+                <Label text="Filter by keyword:"/>
+                <ChoiceBox fx:id="keywordFilterChoiceBox"/>
+                <Label text="Filter by sentiment:"/>
+                <ChoiceBox fx:id="sentimentFilterChoiceBox"/>
+            </HBox>
+            <TitledPane fx:id="mentionsPane" text="Mentions" VBox.vgrow="ALWAYS">
+                <ListView fx:id="mentionListView"/>
+            </TitledPane>
+        </VBox>
+    </center>
+    <bottom>
+        <VBox spacing="5" style="-fx-padding: 10;">
+            <Label fx:id="statusLabel" text="Waiting to start polling..."/>
+            <Label text="Keywords:"/>
+            <ListView fx:id="keywordListView" prefHeight="100"/>
+        </VBox>
+    </bottom>
+</BorderPane>

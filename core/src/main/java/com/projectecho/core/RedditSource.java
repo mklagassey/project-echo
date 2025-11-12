@@ -3,7 +3,9 @@ package com.projectecho.core;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
+import java.io.File;
 import java.io.IOException;
+import java.io.PrintStream;
 import java.net.URI;
 import java.net.URLEncoder;
 import java.net.http.HttpClient;
@@ -50,10 +52,21 @@ public class RedditSource implements Source {
 
                 mentions.add(new Mention(content.trim(), "Reddit r/" + subreddit, url));
             }
-        } catch (IOException | InterruptedException e) {
-            // In a real app, log this error
-            e.printStackTrace();
+        } catch (Exception e) {
+            // Log any exception during polling to our error log file
+            logError(e);
         }
         return mentions;
+    }
+
+    private void logError(Throwable t) {
+        try {
+            File errorLog = new File(System.getProperty("user.home"), "project-echo-error.log");
+            try (PrintStream ps = new PrintStream(errorLog)) {
+                t.printStackTrace(ps);
+            }
+        } catch (Exception e) {
+            // If logging fails, do nothing.
+        }
     }
 }

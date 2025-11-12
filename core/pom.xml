@@ -26,6 +26,12 @@
             <artifactId>jakarta.persistence-api</artifactId>
             <version>3.1.0</version>
         </dependency>
+        <!-- Correct VADER dependency from JitPack -->
+        <dependency>
+            <groupId>com.github.apanimesh061</groupId>
+            <artifactId>VaderSentimentJava</artifactId>
+            <version>v1.1.1</version>
+        </dependency>
     </dependencies>
 
 </project>

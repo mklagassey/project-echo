@@ -1,0 +1,4 @@
+grant {
+    // Allow the application to connect to any host
+    permission java.net.SocketPermission "*:*", "connect,resolve";
+};

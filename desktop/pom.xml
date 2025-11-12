@@ -57,7 +57,94 @@
                     <mainClass>com.projectecho.desktop.Main</mainClass>
                 </configuration>
             </plugin>
+            
+            <!-- Configure the JAR plugin to create a manifest with a classpath -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <version>3.2.2</version>
+                <configuration>
+                    <archive>
+                        <manifest>
+                            <addClasspath>true</addClasspath>
+                            <classpathPrefix>libs/</classpathPrefix>
+                            <mainClass>com.projectecho.desktop.Main</mainClass>
+                        </manifest>
+                    </archive>
+                </configuration>
+            </plugin>
+
+            <!-- This plugin will copy all dependencies into a 'libs' folder -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-dependency-plugin</artifactId>
+                <version>3.3.0</version>
+                <executions>
+                    <execution>
+                        <id>copy-dependencies</id>
+                        <phase>prepare-package</phase>
+                        <goals>
+                            <goal>copy-dependencies</goal>
+                        </goals>
+                        <configuration>
+                            <outputDirectory>${project.build.directory}/libs</outputDirectory>
+                            <includeScope>runtime</includeScope>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
         </plugins>
     </build>
 
+    <profiles>
+        <profile>
+            <id>native</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-antrun-plugin</artifactId>
+                        <version>3.1.0</version>
+                        <executions>
+                            <execution>
+                                <id>jpackage</id>
+                                <phase>package</phase>
+                                <goals>
+                                    <goal>run</goal>
+                                </goals>
+                                <configuration>
+                                    <target>
+                                        <!-- Switch to non-modular packaging -->
+                                        <exec executable="${java.home}/bin/jpackage" failonerror="true">
+                                            <arg value="--type"/>
+                                            <arg value="dmg"/>
+                                            <arg value="--name"/>
+                                            <arg value="ProjectEcho"/>
+                                            <arg value="--app-version"/>
+                                            <arg value="1.0.0"/>
+                                            <arg value="--input"/>
+                                            <arg value="${project.build.directory}"/>
+                                            <arg value="--main-jar"/>
+                                            <arg value="${project.build.finalName}.jar"/>
+                                            <!-- Grant network permissions -->
+                                            <arg value="--java-options"/>
+                                            <arg value="-Djava.security.policy=src/main/resources/security.policy"/>
+                                            <arg value="--java-options"/>
+                                            <arg value="-Dapple.awt.UIElement=true"/>
+                                            <arg value="--vendor"/>
+                                            <arg value="Project Echo"/>
+                                            <arg value="--copyright"/>
+                                            <arg value="Copyright (c) 2024, Project Echo"/>
+                                            <arg value="--mac-package-name"/>
+                                            <arg value="ProjectEcho"/>
+                                        </exec>
+                                    </target>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 </project>

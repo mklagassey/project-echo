@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.chart.*?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.text.Font?>
+
+<!-- **FIX:** Added fx:id to the root VBox -->
+<VBox fx:id="analyticsVBox" spacing="30.0" style="-fx-padding: 20;" xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.projectecho.desktop.AnalyticsController">
+    <children>
+        <!-- Time Filter -->
+        <HBox alignment="CENTER_LEFT" spacing="10">
+            <children>
+                <Label text="Time Range:">
+                    <font><Font name="System Bold" size="14.0" /></font>
+                </Label>
+                <ChoiceBox fx:id="timeFilterChoiceBox" />
+            </children>
+            <VBox.margin>
+                <Insets bottom="5.0" />
+            </VBox.margin>
+        </HBox>
+
+        <!-- KPIs -->
+        <GridPane hgap="25" vgap="10">
+            <columnConstraints>
+                <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0" />
+                <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0" />
+                <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0" />
+            </columnConstraints>
+            <rowConstraints>
+                <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
+            </rowConstraints>
+            <children>
+                <VBox style="-fx-padding: 10; -fx-background-color: #f8f9fa; -fx-border-color: #dee2e6; -fx-border-radius: 5;">
+                    <Label text="Total Mentions" style="-fx-font-weight: bold;" />
+                    <Label fx:id="totalMentionsLabel" text="0">
+                        <font><Font size="24.0" /></font>
+                    </Label>
+                </VBox>
+                <VBox style="-fx-padding: 10; -fx-background-color: #f8f9fa; -fx-border-color: #dee2e6; -fx-border-radius: 5;" GridPane.columnIndex="1">
+                    <Label text="Sentiment Ratio (Pos:Neg)" style="-fx-font-weight: bold;" />
+                    <Label fx:id="sentimentRatioLabel" text="0:0">
+                        <font><Font size="24.0" /></font>
+                    </Label>
+                </VBox>
+                <VBox style="-fx-padding: 10; -fx-background-color: #f8f9fa; -fx-border-color: #dee2e6; -fx-border-radius: 5;" GridPane.columnIndex="2">
+                    <Label text="Most Active Source" style="-fx-font-weight: bold;" />
+                    <Label fx:id="mostActiveSourceLabel" text="N/A">
+                        <font><Font size="24.0" /></font>
+                    </Label>
+                </VBox>
+            </children>
+        </GridPane>
+
+        <!-- Charts -->
+        <HBox spacing="25" VBox.vgrow="ALWAYS">
+            <children>
+                <PieChart fx:id="sentimentPieChart" title="Sentiment Breakdown" HBox.hgrow="ALWAYS" />
+                <BarChart fx:id="topSourcesBarChart" title="Top Sources" HBox.hgrow="ALWAYS">
+                    <xAxis><CategoryAxis side="BOTTOM" /></xAxis>
+                    <yAxis><NumberAxis side="LEFT" /></yAxis>
+                </BarChart>
+            </children>
+        </HBox>
+        
+        <LineChart fx:id="mentionsOverTimeChart" title="Mentions Over Time" minHeight="350.0" VBox.vgrow="ALWAYS">
+            <xAxis><CategoryAxis side="BOTTOM" label="Date" /></xAxis>
+            <yAxis><NumberAxis side="LEFT" label="Number of Mentions" /></yAxis>
+        </LineChart>
+    </children>
+</VBox>

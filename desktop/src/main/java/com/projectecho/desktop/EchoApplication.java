@@ -13,8 +13,6 @@ import java.io.PrintStream;
 
 public class EchoApplication extends Application {
 
-    private MainController mainController;
-
     @Override
     public void start(Stage stage) {
         try {
@@ -22,7 +20,7 @@ public class EchoApplication extends Application {
 
             FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/projectecho/desktop/MainView.fxml"));
             Parent root = loader.load();
-            mainController = loader.getController();
+            MainController mainController = loader.getController();
 
             Scene scene = new Scene(root, 800, 600);
             stage.setTitle("Project Echo");
@@ -31,6 +29,7 @@ public class EchoApplication extends Application {
             stage.setOnCloseRequest(e -> shutdown());
             stage.show();
 
+            // Start services after the UI is fully visible
             mainController.startServices();
             
         } catch (Throwable t) {

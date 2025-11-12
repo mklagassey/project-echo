@@ -1,8 +1,18 @@
 # Project Echo: Brand Monitor
 
+**Project Echo** is a powerful, open-core brand monitoring tool designed for indie hackers, startup founders, and creators. It runs locally on your machine, respects your data, and provides actionable insights without the enterprise price tag.
+
+### Mentions View
+The main dashboard for viewing, filtering, and managing your brand mentions in real-time.
+![Mentions View](docs/images/mentions-view.png)
+
+### Analytics View
+An integrated analytics dashboard to visualize trends, sentiment, and top sources.
+![Analytics View](docs/images/analytics-view.png)
+
 ## 1. Vision & Vibe
 
-**Vision**: To create the world's most useful brand monitor, built on a "trust-first" open-core model. We empower indie hackers, founders, and creators to know when they're being talked about, without paying enterprise prices.
+**Vision**: To create the world's most useful brand monitor, built on a "trust-first" open-core model. We empower users to know when they're being talked about, without paying enterprise prices.
 
 **Vibe**: "Set it and forget it." The tool is a quiet, reliable utility. It's a clean, fast, native-feeling app that respects the user's data and system resources. It's a pro tool, not a toy.
 
@@ -10,7 +20,7 @@
 
 Project Echo is a multi-module Maven project designed around an open-core model.
 
-*   `echo-core`: A shared Java library containing the primary domain models (Keyword, Mention), service interfaces, and data source logic (e.g., for Hacker News and Reddit).
+*   `echo-core`: A shared Java library containing the primary domain models (Keyword, Mention), service interfaces, and data source logic.
 *   `echo-desktop`: A standalone, open-source JavaFX desktop application. It runs 100% locally, using a local SQLite database (`~/.project-echo/echo.db`) for storage and a background scheduler for polling.
 *   `echo-server`: (Future) A premium, cloud-hosted Spring Boot backend that will provide 24/7 monitoring, a web UI, and advanced alerting features.
 
@@ -34,7 +44,7 @@ mvn clean install
 
 The `echo-desktop` module is configured with `jpackage` to create native, self-contained executables for macOS, Windows, and Linux. This provides a seamless, "no-fuss" installation experience for end-users.
 
-The build process is managed through Maven profiles. You do not need to select a profile manually; Maven will automatically activate the correct one based on your operating system.
+The build process is managed through Maven profiles that are **activated automatically** based on your operating system.
 
 ### To Build the Executable:
 
@@ -45,10 +55,7 @@ The build process is managed through Maven profiles. You do not need to select a
     mvn clean package
     ```
 
-    This command will:
-    *   Compile the code.
-    *   Copy all necessary dependencies.
-    *   Trigger the `jpackage` tool to build the native installer for your current OS.
+    This command will build the native installer for your current OS.
 
 ### Finding the Installer
 

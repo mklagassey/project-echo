@@ -6,7 +6,8 @@
 <?import javafx.scene.layout.*?>
 <?import javafx.scene.text.Font?>
 
-<BorderPane xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.projectecho.desktop.MainController">
+<!-- The fx:controller attribute has been removed to resolve the LoadException -->
+<BorderPane xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1">
     <top>
         <VBox>
             <MenuBar>
@@ -80,7 +81,6 @@
             
             <!-- Analytics View -->
             <ScrollPane fx:id="analyticsScrollPane" fitToWidth="true" visible="false">
-                <!-- **FIX:** Set a minimum height on the content to force correct scrollbar calculation -->
                 <VBox spacing="30.0" style="-fx-padding: 20;" minHeight="900.0">
                     <children>
                         <HBox alignment="CENTER_LEFT" spacing="10">

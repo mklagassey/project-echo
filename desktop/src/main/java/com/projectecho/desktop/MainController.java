@@ -1,7 +1,10 @@
 package com.projectecho.desktop;
 
 import com.projectecho.core.Keyword;
+import com.projectecho.core.KeywordDao;
 import com.projectecho.core.Mention;
+import com.projectecho.core.MentionDao;
+import com.projectecho.core.MentionListener;
 import javafx.application.Platform;
 import javafx.beans.value.ChangeListener;
 import javafx.collections.FXCollections;
@@ -23,9 +26,9 @@ import java.util.Optional;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
-public class MainController {
+public class MainController implements MentionListener {
 
-    // --- FXML Fields for All Views ---
+    // --- FXML Fields ---
     @FXML private BorderPane mentionsView;
     @FXML private ScrollPane analyticsScrollPane;
     @FXML private Button mentionsButton, analyticsButton;
@@ -42,17 +45,28 @@ public class MainController {
     @FXML private BarChart<String, Number> topSourcesBarChart;
     @FXML private LineChart<String, Number> mentionsOverTimeChart;
 
-    // --- Data and Services ---
+    // --- Dependencies (Injected) ---
+    private final KeywordDao keywordDao;
+    private final MentionDao mentionDao;
+    private BackgroundPollingService pollingService;
+
+    // --- Data Collections ---
     private final ObservableList<Keyword> keywords = FXCollections.observableArrayList();
     private final ObservableList<Mention> allMentions = FXCollections.observableArrayList();
     private FilteredList<Mention> filteredMentions;
-    private final SqliteKeywordDao keywordDao = new SqliteKeywordDao();
-    private final SqliteMentionDao mentionDao = new SqliteMentionDao();
-    private BackgroundPollingService pollingService;
+
+    // Constructor for Dependency Injection
+    public MainController(KeywordDao keywordDao, MentionDao mentionDao) {
+        this.keywordDao = keywordDao;
+        this.mentionDao = mentionDao;
+    }
+
+    public void setPollingService(BackgroundPollingService pollingService) {
+        this.pollingService = pollingService;
+    }
 
     @FXML
     public void initialize() {
-        // --- Mentions View Setup ---
         keywordListView.setItems(keywords);
         filteredMentions = new FilteredList<>(allMentions);
         mentionListView.setItems(filteredMentions);
@@ -66,20 +80,17 @@ public class MainController {
         });
         setupFilters();
         setupMentionsPane();
-
-        // --- Analytics View Setup ---
         timeFilterChoiceBox.getItems().addAll("Last 7 Days", "Last 30 Days", "All Time");
         timeFilterChoiceBox.setValue("Last 30 Days");
         timeFilterChoiceBox.getSelectionModel().selectedItemProperty().addListener((obs, old, val) -> refreshAnalytics());
-
-        // --- Global Setup ---
         setupPollingMenu();
         showMentionsView();
     }
     
     public void startServices() {
-        pollingService = new BackgroundPollingService(this, keywordDao, mentionDao);
-        pollingService.start();
+        if (pollingService != null) {
+            pollingService.start();
+        }
         loadInitialData();
     }
 
@@ -90,7 +101,16 @@ public class MainController {
         refreshAnalytics();
     }
 
-    // --- View Switching Logic ---
+    @Override
+    public void onMentionsFound(List<Mention> newMentions) {
+        Platform.runLater(() -> allMentions.addAll(0, newMentions));
+    }
+
+    @Override
+    public void onStatusUpdate(String status) {
+        Platform.runLater(() -> statusLabel.setText(status));
+    }
+
     @FXML
     private void showMentionsView() {
         mentionsView.setVisible(true);
@@ -112,7 +132,6 @@ public class MainController {
         analyticsButton.setStyle(analyticsButton == activeButton ? activeStyle : "");
     }
 
-    // --- Global Menu Handlers ---
     private void setupPollingMenu() {
         ToggleGroup frequencyToggleGroup = new ToggleGroup();
         freq15m.setToggleGroup(frequencyToggleGroup);
@@ -125,6 +144,11 @@ public class MainController {
             else if (val == freq30m) pollingService.setPollingInterval(30);
             else if (val == freq1h) pollingService.setPollingInterval(60);
         });
+    }
+
+    @FXML
+    private void checkNow() {
+        if (pollingService != null) pollingService.pollNow();
     }
 
     @FXML
@@ -144,7 +168,6 @@ public class MainController {
         }
     }
 
-    // --- Analytics Logic ---
     private void refreshAnalytics() {
         List<Mention> filteredForTime = filterMentionsByTime(allMentions, timeFilterChoiceBox.getValue());
         updateKPIs(filteredForTime);
@@ -194,23 +217,6 @@ public class MainController {
         mentionsOverTimeChart.getData().setAll(series);
     }
 
-    // --- Mentions View Logic ---
-    @FXML private void checkNow() { if (pollingService != null) pollingService.pollNow(); }
-    @FXML private void addKeyword() {
-        String phrase = keywordInput.getText();
-        if (phrase != null && !phrase.isEmpty()) {
-            keywordDao.save(new Keyword(phrase));
-            keywordInput.clear();
-            keywords.setAll(keywordDao.findAll());
-        }
-    }
-    @FXML private void deleteSelectedKeyword() {
-        Keyword selected = keywordListView.getSelectionModel().getSelectedItem();
-        if (selected != null) {
-            keywordDao.delete(selected);
-            keywords.setAll(keywordDao.findAll());
-        }
-    }
     private void setupFilters() {
         sourceFilterChoiceBox.getItems().addAll("All Sources", "Hacker News", "Reddit r/saas");
         sourceFilterChoiceBox.setValue("All Sources");
@@ -224,6 +230,7 @@ public class MainController {
         keywordFilterChoiceBox.getSelectionModel().selectedItemProperty().addListener(filterListener);
         sentimentFilterChoiceBox.getSelectionModel().selectedItemProperty().addListener(filterListener);
     }
+
     private void applyFilters() {
         String selectedSource = sourceFilterChoiceBox.getValue();
         String selectedKeyword = keywordFilterChoiceBox.getValue();
@@ -234,6 +241,7 @@ public class MainController {
         Predicate<Mention> sentimentPredicate = mention -> "All Sentiments".equals(selectedSentiment) || (mention.getSentiment() != null && selectedSentiment.equals(mention.getSentiment().name()));
         filteredMentions.setPredicate(sourcePredicate.and(keywordPredicate).and(sentimentPredicate));
     }
+    
     private void updateKeywordFilterChoices() {
         String selected = keywordFilterChoiceBox.getValue();
         keywordFilterChoiceBox.getItems().setAll("All Keywords");
@@ -241,11 +249,32 @@ public class MainController {
         if (keywordFilterChoiceBox.getItems().contains(selected)) keywordFilterChoiceBox.setValue(selected);
         else keywordFilterChoiceBox.setValue("All Keywords");
     }
+
     private void setupMentionsPane() {
         mentionsPane.setExpanded(true);
         filteredMentions.addListener((ListChangeListener<Mention>) c -> mentionsPane.setText("Mentions (" + filteredMentions.size() + ")"));
         mentionsPane.setText("Mentions (0)");
     }
+
+    @FXML
+    private void addKeyword() {
+        String phrase = keywordInput.getText();
+        if (phrase != null && !phrase.isEmpty()) {
+            keywordDao.save(new Keyword(phrase));
+            keywordInput.clear();
+            keywords.setAll(keywordDao.findAll());
+        }
+    }
+
+    @FXML
+    private void deleteSelectedKeyword() {
+        Keyword selected = keywordListView.getSelectionModel().getSelectedItem();
+        if (selected != null) {
+            keywordDao.delete(selected);
+            keywords.setAll(keywordDao.findAll());
+        }
+    }
+
     private boolean showConfirmation(String title, String content) {
         Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
         alert.setTitle(title);
@@ -254,6 +283,4 @@ public class MainController {
         Optional<ButtonType> result = alert.showAndWait();
         return result.isPresent() && result.get() == ButtonType.OK;
     }
-    public void addMentions(List<Mention> newMentions) { Platform.runLater(() -> allMentions.addAll(0, newMentions)); }
-    public void updateStatus(String text) { Platform.runLater(() -> statusLabel.setText(text)); }
 }

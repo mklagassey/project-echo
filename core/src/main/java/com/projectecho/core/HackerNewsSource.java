@@ -16,10 +16,13 @@ import java.util.List;
 
 public class HackerNewsSource implements Source {
 
-    // Ensure we are using HTTPS
-    private static final String API_URL = "https://hn.algolia.com/api/v1/search?query=";
-
+    private final String apiUrl;
     private final HttpClient httpClient = HttpClient.newHttpClient();
+
+    // The constructor now accepts the URL directly, removing any dependency on other modules.
+    public HackerNewsSource(String apiUrl) {
+        this.apiUrl = apiUrl;
+    }
 
     @Override
     public List<Mention> findMentions(Keyword keyword) {
@@ -27,7 +30,7 @@ public class HackerNewsSource implements Source {
         try {
             String encodedKeyword = URLEncoder.encode("\"" + keyword.getPhrase() + "\"", StandardCharsets.UTF_8);
             HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(API_URL + encodedKeyword))
+                    .uri(URI.create(apiUrl + encodedKeyword))
                     .build();
 
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
@@ -38,7 +41,7 @@ public class HackerNewsSource implements Source {
                 JSONObject hit = hits.getJSONObject(i);
                 String title = hit.optString("title", null);
                 String url = hit.optString("url", null);
-                String content = hit.optString("story_text", title); // Fallback to title
+                String content = hit.optString("story_text", title);
 
                 if (content != null && url != null) {
                     mentions.add(new Mention(content, "Hacker News", url));

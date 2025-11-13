@@ -13,14 +13,22 @@ import java.io.PrintStream;
 
 public class EchoApplication extends Application {
 
+    private AppContext appContext;
+
     @Override
     public void start(Stage stage) {
         try {
             Database.initialize();
 
+            // Create the application context, which manages all dependencies.
+            appContext = new AppContext();
+
             FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/projectecho/desktop/MainView.fxml"));
+            
+            // Set the controller from the AppContext.
+            loader.setController(appContext.getMainController());
+            
             Parent root = loader.load();
-            MainController mainController = loader.getController();
 
             Scene scene = new Scene(root, 800, 600);
             stage.setTitle("Project Echo");
@@ -29,8 +37,8 @@ public class EchoApplication extends Application {
             stage.setOnCloseRequest(e -> shutdown());
             stage.show();
 
-            // Start services after the UI is fully visible
-            mainController.startServices();
+            // Start services after the UI is fully visible.
+            appContext.getMainController().startServices();
             
         } catch (Throwable t) {
             logError(t);
@@ -39,6 +47,9 @@ public class EchoApplication extends Application {
     }
 
     private void shutdown() {
+        if (appContext != null && appContext.getPollingService() != null) {
+            appContext.getPollingService().stop();
+        }
         Platform.exit();
         System.exit(0);
     }

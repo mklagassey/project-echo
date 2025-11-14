@@ -4,7 +4,6 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.io.File;
-import java.io.IOException;
 import java.io.PrintStream;
 import java.net.URI;
 import java.net.URLEncoder;
@@ -12,6 +11,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -35,7 +35,6 @@ public class RedditSource implements Source {
 
             HttpRequest request = HttpRequest.newBuilder()
                     .uri(URI.create(apiUrl))
-                    // Reddit API requires a unique User-Agent
                     .header("User-Agent", "ProjectEcho/1.0")
                     .build();
 
@@ -49,11 +48,14 @@ public class RedditSource implements Source {
                 String selftext = post.optString("selftext", "");
                 String url = "https://www.reddit.com" + post.optString("permalink", "");
                 String content = title + "\n" + selftext;
+                long createdAt = post.optLong("created_utc");
 
-                mentions.add(new Mention(content.trim(), "Reddit r/" + subreddit, url));
+                if (createdAt > 0) {
+                    Instant authoredAt = Instant.ofEpochSecond(createdAt);
+                    mentions.add(new Mention(content.trim(), "Reddit r/" + subreddit, url, authoredAt));
+                }
             }
         } catch (Exception e) {
-            // Log any exception during polling to our error log file
             logError(e);
         }
         return mentions;

@@ -37,12 +37,15 @@ public class Database {
                          "content TEXT NOT NULL," +
                          "source TEXT NOT NULL," +
                          "url TEXT NOT NULL UNIQUE," +
-                         "foundAt TEXT NOT NULL" +
+                         "foundAt TEXT NOT NULL," +
+                         "authoredAt TEXT" + // Add authoredAt column
                          ");");
 
-            // Robustly check for and add the sentiment column
             if (!columnExists(conn, "mentions", "sentiment")) {
                 stmt.execute("ALTER TABLE mentions ADD COLUMN sentiment TEXT");
+            }
+            if (!columnExists(conn, "mentions", "authoredAt")) {
+                stmt.execute("ALTER TABLE mentions ADD COLUMN authoredAt TEXT");
             }
 
         } catch (SQLException e) {

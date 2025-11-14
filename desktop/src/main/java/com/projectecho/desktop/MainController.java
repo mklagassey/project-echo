@@ -15,6 +15,7 @@ import javafx.fxml.FXML;
 import javafx.scene.chart.*;
 import javafx.scene.control.*;
 import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.HBox;
 
 import java.time.Instant;
 import java.time.LocalDate;
@@ -28,9 +29,7 @@ import java.util.stream.Collectors;
 
 public class MainController implements MentionListener {
 
-    // --- FXML Fields ---
-    @FXML private BorderPane mentionsView;
-    @FXML private ScrollPane analyticsScrollPane;
+    @FXML private BorderPane mentionsView, analyticsView;
     @FXML private Button mentionsButton, analyticsButton;
     @FXML private RadioMenuItem freq15m, freq30m, freq1h;
     @FXML private TextField keywordInput;
@@ -38,31 +37,26 @@ public class MainController implements MentionListener {
     @FXML private ListView<Mention> mentionListView;
     @FXML private Label statusLabel;
     @FXML private ChoiceBox<String> sourceFilterChoiceBox, keywordFilterChoiceBox, sentimentFilterChoiceBox;
+    @FXML private ChoiceBox<String> mentionsDateFilterChoiceBox, analyticsTimeFilterChoiceBox, analyticsSourceFilterChoiceBox, analyticsKeywordFilterChoiceBox;
+    @FXML private HBox mentionsCustomDateBox, analyticsCustomDateBox;
+    @FXML private DatePicker mentionsStartDatePicker, mentionsEndDatePicker, analyticsStartDatePicker, analyticsEndDatePicker;
     @FXML private TitledPane mentionsPane;
-    @FXML private ChoiceBox<String> timeFilterChoiceBox;
     @FXML private Label totalMentionsLabel, sentimentRatioLabel, mostActiveSourceLabel;
     @FXML private PieChart sentimentPieChart;
     @FXML private BarChart<String, Number> topSourcesBarChart;
     @FXML private LineChart<String, Number> mentionsOverTimeChart;
 
-    // --- Dependencies (Injected) ---
     private final KeywordDao keywordDao;
     private final MentionDao mentionDao;
     private BackgroundPollingService pollingService;
 
-    // --- Data Collections ---
     private final ObservableList<Keyword> keywords = FXCollections.observableArrayList();
     private final ObservableList<Mention> allMentions = FXCollections.observableArrayList();
     private FilteredList<Mention> filteredMentions;
 
-    // Constructor for Dependency Injection
     public MainController(KeywordDao keywordDao, MentionDao mentionDao) {
         this.keywordDao = keywordDao;
         this.mentionDao = mentionDao;
-    }
-
-    public void setPollingService(BackgroundPollingService pollingService) {
-        this.pollingService = pollingService;
     }
 
     @FXML
@@ -78,19 +72,16 @@ public class MainController implements MentionListener {
                 setText(empty || item == null ? null : item.getPhrase());
             }
         });
-        setupFilters();
+        setupMentionsFilters();
+        setupAnalyticsFilters();
         setupMentionsPane();
-        timeFilterChoiceBox.getItems().addAll("Last 7 Days", "Last 30 Days", "All Time");
-        timeFilterChoiceBox.setValue("Last 30 Days");
-        timeFilterChoiceBox.getSelectionModel().selectedItemProperty().addListener((obs, old, val) -> refreshAnalytics());
         setupPollingMenu();
         showMentionsView();
     }
     
-    public void startServices() {
-        if (pollingService != null) {
-            pollingService.start();
-        }
+    public void startServices(BackgroundPollingService pollingService) {
+        this.pollingService = pollingService;
+        this.pollingService.start();
         loadInitialData();
     }
 
@@ -103,7 +94,10 @@ public class MainController implements MentionListener {
 
     @Override
     public void onMentionsFound(List<Mention> newMentions) {
-        Platform.runLater(() -> allMentions.addAll(0, newMentions));
+        Platform.runLater(() -> {
+            allMentions.addAll(0, newMentions);
+            refreshAnalytics();
+        });
     }
 
     @Override
@@ -111,10 +105,156 @@ public class MainController implements MentionListener {
         Platform.runLater(() -> statusLabel.setText(status));
     }
 
+    private void setupMentionsFilters() {
+        sourceFilterChoiceBox.getItems().addAll("All Sources", "Hacker News", "Reddit r/saas");
+        sourceFilterChoiceBox.setValue("All Sources");
+        keywordFilterChoiceBox.getItems().add("All Keywords");
+        keywordFilterChoiceBox.setValue("All Keywords");
+        sentimentFilterChoiceBox.getItems().addAll("All Sentiments", "POSITIVE", "NEUTRAL", "NEGATIVE");
+        sentimentFilterChoiceBox.setValue("All Sentiments");
+        
+        setupDateFilter(mentionsDateFilterChoiceBox, mentionsCustomDateBox, mentionsStartDatePicker, mentionsEndDatePicker, this::applyFilters);
+
+        ChangeListener<Object> filterListener = (obs, oldVal, newVal) -> applyFilters();
+        sourceFilterChoiceBox.getSelectionModel().selectedItemProperty().addListener(filterListener);
+        keywordFilterChoiceBox.getSelectionModel().selectedItemProperty().addListener(filterListener);
+        sentimentFilterChoiceBox.getSelectionModel().selectedItemProperty().addListener(filterListener);
+    }
+
+    private void setupAnalyticsFilters() {
+        analyticsSourceFilterChoiceBox.getItems().addAll("All Sources", "Hacker News", "Reddit r/saas");
+        analyticsSourceFilterChoiceBox.setValue("All Sources");
+        analyticsKeywordFilterChoiceBox.getItems().add("All Keywords");
+        analyticsKeywordFilterChoiceBox.setValue("All Keywords");
+        
+        keywords.addListener((ListChangeListener<Keyword>) c -> updateKeywordFilterChoices());
+        
+        setupDateFilter(analyticsTimeFilterChoiceBox, analyticsCustomDateBox, analyticsStartDatePicker, analyticsEndDatePicker, this::refreshAnalytics);
+        
+        analyticsSourceFilterChoiceBox.getSelectionModel().selectedItemProperty().addListener((obs, old, val) -> refreshAnalytics());
+        analyticsKeywordFilterChoiceBox.getSelectionModel().selectedItemProperty().addListener((obs, old, val) -> refreshAnalytics());
+    }
+
+    private void setupDateFilter(ChoiceBox<String> choiceBox, HBox customDateBox, DatePicker startDatePicker, DatePicker endDatePicker, Runnable onFilterChange) {
+        choiceBox.getItems().addAll("All Time", "Last 7 Days", "Last 30 Days", "Year to Date", "Custom Range...");
+        choiceBox.setValue("All Time");
+        choiceBox.getSelectionModel().selectedItemProperty().addListener((obs, oldVal, newVal) -> {
+            customDateBox.setVisible("Custom Range...".equals(newVal));
+            onFilterChange.run();
+        });
+        startDatePicker.valueProperty().addListener((obs, old, val) -> onFilterChange.run());
+        endDatePicker.valueProperty().addListener((obs, old, val) -> onFilterChange.run());
+    }
+
+    private void applyFilters() {
+        Predicate<Mention> sourcePredicate = mention -> "All Sources".equals(sourceFilterChoiceBox.getValue()) || sourceFilterChoiceBox.getValue().equals(mention.getSource());
+        Predicate<Mention> keywordPredicate = mention -> "All Keywords".equals(keywordFilterChoiceBox.getValue()) || (mention.getContent() != null && mention.getContent().toLowerCase().contains(keywordFilterChoiceBox.getValue().toLowerCase()));
+        Predicate<Mention> sentimentPredicate = mention -> "All Sentiments".equals(sentimentFilterChoiceBox.getValue()) || (mention.getSentiment() != null && sentimentFilterChoiceBox.getValue().equals(mention.getSentiment().name()));
+        Predicate<Mention> datePredicate = getDatePredicate(mentionsDateFilterChoiceBox.getValue(), mentionsStartDatePicker.getValue(), mentionsEndDatePicker.getValue());
+        
+        filteredMentions.setPredicate(sourcePredicate.and(keywordPredicate).and(sentimentPredicate).and(datePredicate));
+    }
+
+    private Predicate<Mention> getDatePredicate(String timeRange, LocalDate startDate, LocalDate endDate) {
+        Instant now = Instant.now();
+        LocalDate today = now.atZone(ZoneId.systemDefault()).toLocalDate();
+        
+        Instant startInstant;
+        Instant endInstant = now;
+
+        if (timeRange == null) timeRange = "All Time";
+
+        switch (timeRange) {
+            case "Last 7 Days":
+                startInstant = now.minus(7, ChronoUnit.DAYS);
+                break;
+            case "Last 30 Days":
+                startInstant = now.minus(30, ChronoUnit.DAYS);
+                break;
+            case "Year to Date":
+                startInstant = today.withDayOfYear(1).atStartOfDay(ZoneId.systemDefault()).toInstant();
+                break;
+            case "Custom Range...":
+                startInstant = (startDate != null) ? startDate.atStartOfDay(ZoneId.systemDefault()).toInstant() : Instant.MIN;
+                endInstant = (endDate != null) ? endDate.plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant() : Instant.MAX;
+                break;
+            default: // "All Time"
+                return mention -> true;
+        }
+
+        final Instant finalStart = startInstant;
+        final Instant finalEnd = endInstant;
+        return mention -> mention.getAuthoredAt() != null && mention.getAuthoredAt().isAfter(finalStart) && mention.getAuthoredAt().isBefore(finalEnd);
+    }
+    
+    private void refreshAnalytics() {
+        Predicate<Mention> datePredicate = getDatePredicate(analyticsTimeFilterChoiceBox.getValue(), analyticsStartDatePicker.getValue(), analyticsEndDatePicker.getValue());
+        Predicate<Mention> sourcePredicate = mention -> "All Sources".equals(analyticsSourceFilterChoiceBox.getValue()) || analyticsSourceFilterChoiceBox.getValue().equals(mention.getSource());
+        Predicate<Mention> keywordPredicate = mention -> "All Keywords".equals(analyticsKeywordFilterChoiceBox.getValue()) || (mention.getContent() != null && mention.getContent().toLowerCase().contains(analyticsKeywordFilterChoiceBox.getValue().toLowerCase()));
+
+        List<Mention> filteredForAnalytics = allMentions.stream()
+            .filter(datePredicate)
+            .filter(sourcePredicate)
+            .filter(keywordPredicate)
+            .collect(Collectors.toList());
+        
+        updateKPIs(filteredForAnalytics);
+        updateTopSourcesBarChart(filteredForAnalytics);
+        updateMentionsOverTimeChart(filteredForAnalytics);
+        
+        Platform.runLater(() -> updateSentimentPieChart(filteredForAnalytics));
+    }
+    
+    private void updateKeywordFilterChoices() {
+        String mentionsSelected = keywordFilterChoiceBox.getValue();
+        String analyticsSelected = analyticsKeywordFilterChoiceBox.getValue();
+        
+        keywordFilterChoiceBox.getItems().setAll("All Keywords");
+        analyticsKeywordFilterChoiceBox.getItems().setAll("All Keywords");
+        
+        keywords.forEach(kw -> {
+            keywordFilterChoiceBox.getItems().add(kw.getPhrase());
+            analyticsKeywordFilterChoiceBox.getItems().add(kw.getPhrase());
+        });
+
+        keywordFilterChoiceBox.setValue(keywordFilterChoiceBox.getItems().contains(mentionsSelected) ? mentionsSelected : "All Keywords");
+        analyticsKeywordFilterChoiceBox.setValue(analyticsKeywordFilterChoiceBox.getItems().contains(analyticsSelected) ? analyticsSelected : "All Keywords");
+    }
+
+    private void updateKPIs(List<Mention> mentions) {
+        totalMentionsLabel.setText(String.valueOf(mentions.size()));
+        long pos = mentions.stream().filter(m -> m.getSentiment() == Mention.Sentiment.POSITIVE).count();
+        long neg = mentions.stream().filter(m -> m.getSentiment() == Mention.Sentiment.NEGATIVE).count();
+        sentimentRatioLabel.setText(pos + ":" + neg);
+        mostActiveSourceLabel.setText(mentions.stream().collect(Collectors.groupingBy(Mention::getSource, Collectors.counting())).entrySet().stream().max(Map.Entry.comparingByValue()).map(Map.Entry::getKey).orElse("N/A"));
+    }
+
+    private void updateSentimentPieChart(List<Mention> mentions) {
+        Map<Mention.Sentiment, Long> counts = mentions.stream().filter(m -> m.getSentiment() != null).collect(Collectors.groupingBy(Mention::getSentiment, Collectors.counting()));
+        ObservableList<PieChart.Data> data = FXCollections.observableArrayList();
+        counts.forEach((sentiment, count) -> data.add(new PieChart.Data(sentiment.name(), count)));
+        sentimentPieChart.setData(data);
+    }
+
+    private void updateTopSourcesBarChart(List<Mention> mentions) {
+        Map<String, Long> counts = mentions.stream().collect(Collectors.groupingBy(Mention::getSource, Collectors.counting()));
+        XYChart.Series<String, Number> series = new XYChart.Series<>();
+        counts.forEach((source, count) -> series.getData().add(new XYChart.Data<>(source, count)));
+        topSourcesBarChart.getData().setAll(series);
+    }
+
+    private void updateMentionsOverTimeChart(List<Mention> mentions) {
+        Map<LocalDate, Long> counts = mentions.stream().collect(Collectors.groupingBy(m -> m.getAuthoredAt().atZone(ZoneId.systemDefault()).toLocalDate(), Collectors.counting()));
+        XYChart.Series<String, Number> series = new XYChart.Series<>();
+        series.setName("Mentions");
+        counts.entrySet().stream().sorted(Map.Entry.comparingByKey()).forEach(e -> series.getData().add(new XYChart.Data<>(e.getKey().toString(), e.getValue())));
+        mentionsOverTimeChart.getData().setAll(series);
+    }
+    
     @FXML
     private void showMentionsView() {
         mentionsView.setVisible(true);
-        analyticsScrollPane.setVisible(false);
+        analyticsView.setVisible(false);
         updateButtonStyles(mentionsButton);
     }
 
@@ -122,7 +262,7 @@ public class MainController implements MentionListener {
     private void showAnalyticsView() {
         refreshAnalytics();
         mentionsView.setVisible(false);
-        analyticsScrollPane.setVisible(true);
+        analyticsView.setVisible(true);
         updateButtonStyles(analyticsButton);
     }
 
@@ -166,88 +306,6 @@ public class MainController implements MentionListener {
             allMentions.clear();
             refreshAnalytics();
         }
-    }
-
-    private void refreshAnalytics() {
-        List<Mention> filteredForTime = filterMentionsByTime(allMentions, timeFilterChoiceBox.getValue());
-        updateKPIs(filteredForTime);
-        updateSentimentPieChart(filteredForTime);
-        updateTopSourcesBarChart(filteredForTime);
-        updateMentionsOverTimeChart(filteredForTime);
-    }
-
-    private List<Mention> filterMentionsByTime(List<Mention> mentions, String timeRange) {
-        Instant now = Instant.now();
-        Instant cutoff;
-        switch (timeRange) {
-            case "Last 7 Days": cutoff = now.minus(7, ChronoUnit.DAYS); break;
-            case "Last 30 Days": cutoff = now.minus(30, ChronoUnit.DAYS); break;
-            default: return mentions;
-        }
-        return mentions.stream().filter(m -> m.getFoundAt().isAfter(cutoff)).collect(Collectors.toList());
-    }
-
-    private void updateKPIs(List<Mention> mentions) {
-        totalMentionsLabel.setText(String.valueOf(mentions.size()));
-        long pos = mentions.stream().filter(m -> m.getSentiment() == Mention.Sentiment.POSITIVE).count();
-        long neg = mentions.stream().filter(m -> m.getSentiment() == Mention.Sentiment.NEGATIVE).count();
-        sentimentRatioLabel.setText(pos + ":" + neg);
-        mostActiveSourceLabel.setText(mentions.stream().collect(Collectors.groupingBy(Mention::getSource, Collectors.counting())).entrySet().stream().max(Map.Entry.comparingByValue()).map(Map.Entry::getKey).orElse("N/A"));
-    }
-
-    private void updateSentimentPieChart(List<Mention> mentions) {
-        Map<Mention.Sentiment, Long> counts = mentions.stream().filter(m -> m.getSentiment() != null).collect(Collectors.groupingBy(Mention::getSentiment, Collectors.counting()));
-        ObservableList<PieChart.Data> data = FXCollections.observableArrayList();
-        counts.forEach((sentiment, count) -> data.add(new PieChart.Data(sentiment.name(), count)));
-        sentimentPieChart.setData(data);
-    }
-
-    private void updateTopSourcesBarChart(List<Mention> mentions) {
-        Map<String, Long> counts = mentions.stream().collect(Collectors.groupingBy(Mention::getSource, Collectors.counting()));
-        XYChart.Series<String, Number> series = new XYChart.Series<>();
-        counts.forEach((source, count) -> series.getData().add(new XYChart.Data<>(source, count)));
-        topSourcesBarChart.getData().setAll(series);
-    }
-
-    private void updateMentionsOverTimeChart(List<Mention> mentions) {
-        Map<LocalDate, Long> counts = mentions.stream().collect(Collectors.groupingBy(m -> m.getFoundAt().atZone(ZoneId.systemDefault()).toLocalDate(), Collectors.counting()));
-        XYChart.Series<String, Number> series = new XYChart.Series<>();
-        series.setName("Mentions");
-        counts.entrySet().stream().sorted(Map.Entry.comparingByKey()).forEach(e -> series.getData().add(new XYChart.Data<>(e.getKey().toString(), e.getValue())));
-        mentionsOverTimeChart.getData().setAll(series);
-    }
-
-    private void setupFilters() {
-        sourceFilterChoiceBox.getItems().addAll("All Sources", "Hacker News", "Reddit r/saas");
-        sourceFilterChoiceBox.setValue("All Sources");
-        keywordFilterChoiceBox.getItems().add("All Keywords");
-        keywordFilterChoiceBox.setValue("All Keywords");
-        keywords.addListener((ListChangeListener<Keyword>) c -> updateKeywordFilterChoices());
-        sentimentFilterChoiceBox.getItems().addAll("All Sentiments", "POSITIVE", "NEUTRAL", "NEGATIVE");
-        sentimentFilterChoiceBox.setValue("All Sentiments");
-        ChangeListener<String> filterListener = (obs, old, val) -> applyFilters();
-        sourceFilterChoiceBox.getSelectionModel().selectedItemProperty().addListener(filterListener);
-        keywordFilterChoiceBox.getSelectionModel().selectedItemProperty().addListener(filterListener);
-        sentimentFilterChoiceBox.getSelectionModel().selectedItemProperty().addListener(filterListener);
-    }
-
-    private void applyFilters() {
-        String selectedSource = sourceFilterChoiceBox.getValue();
-        String selectedKeyword = keywordFilterChoiceBox.getValue();
-        String selectedSentiment = sentimentFilterChoiceBox.getValue();
-        if (selectedSource == null || selectedKeyword == null || selectedSentiment == null) return;
-        Predicate<Mention> sourcePredicate = mention -> "All Sources".equals(selectedSource) || selectedSource.equals(mention.getSource());
-        Predicate<Mention> keywordPredicate = mention -> "All Keywords".equals(selectedKeyword) || (mention.getContent() != null && mention.getContent().toLowerCase().contains(selectedKeyword.toLowerCase()));
-        Predicate<Mention> sentimentPredicate = mention -> "All Sentiments".equals(selectedSentiment) || (mention.getSentiment() != null && selectedSentiment.equals(mention.getSentiment().name()));
-        filteredMentions.setPredicate(sourcePredicate.and(keywordPredicate).and(sentimentPredicate));
-    }
-    
-    private void updateKeywordFilterChoices() {
-        String selected = keywordFilterChoiceBox.getValue();
-        keywordFilterChoiceBox.getItems().setAll("All Keywords");
-        keywords.forEach(kw -> keywordFilterChoiceBox.getItems().add(kw.getPhrase()));
-        if (keywordFilterChoiceBox.getItems().contains(selected)) keywordFilterChoiceBox.setValue(selected);
-        else keywordFilterChoiceBox.setValue("All Keywords");
     }
 
     private void setupMentionsPane() {

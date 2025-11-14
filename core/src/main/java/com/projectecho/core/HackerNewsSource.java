@@ -11,6 +11,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -19,7 +20,6 @@ public class HackerNewsSource implements Source {
     private final String apiUrl;
     private final HttpClient httpClient = HttpClient.newHttpClient();
 
-    // The constructor now accepts the URL directly, removing any dependency on other modules.
     public HackerNewsSource(String apiUrl) {
         this.apiUrl = apiUrl;
     }
@@ -42,9 +42,11 @@ public class HackerNewsSource implements Source {
                 String title = hit.optString("title", null);
                 String url = hit.optString("url", null);
                 String content = hit.optString("story_text", title);
+                long createdAt = hit.optLong("created_at_i");
 
-                if (content != null && url != null) {
-                    mentions.add(new Mention(content, "Hacker News", url));
+                if (content != null && url != null && createdAt > 0) {
+                    Instant authoredAt = Instant.ofEpochSecond(createdAt);
+                    mentions.add(new Mention(content, "Hacker News", url, authoredAt));
                 }
             }
         } catch (Exception e) {

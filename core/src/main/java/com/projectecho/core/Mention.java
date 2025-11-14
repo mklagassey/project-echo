@@ -20,16 +20,19 @@ public class Mention {
     private String source;
     private String url;
     private Instant foundAt;
+    private Instant authoredAt; // New field for the creation date
     private Sentiment sentiment;
 
     public Mention() {
     }
 
-    public Mention(String content, String source, String url) {
+    // Updated constructor
+    public Mention(String content, String source, String url, Instant authoredAt) {
         this.content = content;
         this.source = source;
         this.url = url;
-        this.foundAt = Instant.now();
+        this.authoredAt = authoredAt;
+        this.foundAt = Instant.now(); // The "found" date is always now
     }
 
     // Getters and Setters
@@ -72,6 +75,14 @@ public class Mention {
 
     public void setFoundAt(Instant foundAt) {
         this.foundAt = foundAt;
+    }
+
+    public Instant getAuthoredAt() {
+        return authoredAt;
+    }
+
+    public void setAuthoredAt(Instant authoredAt) {
+        this.authoredAt = authoredAt;
     }
 
     public Sentiment getSentiment() {

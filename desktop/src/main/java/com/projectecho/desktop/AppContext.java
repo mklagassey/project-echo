@@ -21,7 +21,8 @@ public class AppContext {
         
         this.pollingService.addListener(mainController);
         
-        this.mainController.setPollingService(pollingService);
+        // The controller now starts the service, so this call is no longer needed.
+        // this.mainController.setPollingService(pollingService); 
     }
 
     public MainController getMainController() {

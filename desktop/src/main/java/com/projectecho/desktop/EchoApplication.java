@@ -19,15 +19,10 @@ public class EchoApplication extends Application {
     public void start(Stage stage) {
         try {
             Database.initialize();
-
-            // Create the application context, which manages all dependencies.
             appContext = new AppContext();
 
             FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/projectecho/desktop/MainView.fxml"));
-            
-            // Set the controller from the AppContext.
             loader.setController(appContext.getMainController());
-            
             Parent root = loader.load();
 
             Scene scene = new Scene(root, 800, 600);
@@ -37,8 +32,8 @@ public class EchoApplication extends Application {
             stage.setOnCloseRequest(e -> shutdown());
             stage.show();
 
-            // Start services after the UI is fully visible.
-            appContext.getMainController().startServices();
+            // Pass the polling service to the controller to start it
+            appContext.getMainController().startServices(appContext.getPollingService());
             
         } catch (Throwable t) {
             logError(t);

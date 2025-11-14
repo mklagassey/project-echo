@@ -53,8 +53,15 @@ public class MentionListCell extends ListCell<Mention> {
             setGraphic(null);
         } else {
             sourceLabel.setText(item.getSource());
-            LocalDateTime localDateTime = LocalDateTime.ofInstant(item.getFoundAt(), ZoneId.systemDefault());
-            dateLabel.setText(DATE_FORMATTER.format(localDateTime));
+            
+            // Display the authoredAt date
+            if (item.getAuthoredAt() != null) {
+                LocalDateTime localDateTime = LocalDateTime.ofInstant(item.getAuthoredAt(), ZoneId.systemDefault());
+                dateLabel.setText(DATE_FORMATTER.format(localDateTime));
+            } else {
+                dateLabel.setText("No Date");
+            }
+            
             contentTextArea.setText(item.getContent());
 
             if (item.getSentiment() != null) {
